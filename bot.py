@@ -1,82 +1,26 @@
-#!/usr/bin/env python
-# pylint: disable=unused-argument
-# This program is dedicated to the public domain under the CC0 license.
-
-"""
-Simple Bot to reply to Telegram messages.
-
-First, a few handler functions are defined. Then, those functions are passed to
-the Application and registered at their respective places.
-Then, the bot is started and runs until we press Ctrl-C on the command line.
-
-Usage:
-Basic Echobot example, repeats messages.
-Press Ctrl-C on the command line or send a signal to the process to stop the
-bot.
-"""
-
 import logging
-import os
+from aiogram import Bot, Dispatcher, executor, types
 
-from dotenv import load_dotenv
-from telegram import ForceReply, Update
-from telegram.ext import Application, ContextTypes
+API_TOKEN = '7186402403:AAGaIpUQDIeNwaXtKqC95oba1QYzHimZJl8'
 
-# Enable logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-# set higher logging level for httpx to avoid all GET and POST requests being logged
-logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.basicConfig(level=logging.INFO)
 
-logger = logging.getLogger(__name__)
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher(bot)
 
+@dp.message_handler(commands=['start'])
+async def send_welcome(message: types.Message):
+    await message.answer("Привет! Я Алина. Хочешь моё фото? Напиши /photo")
 
-# Define a few command handlers. These usually take the two arguments update and
-# context.
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /start is issued."""
-    user = update.effective_user
-    await update.message.reply_html(
-        rf"Hi {user.mention_html()}!",
-        reply_markup=ForceReply(selective=True),
-    )
+@dp.message_handler(commands=['photo'])
+async def send_photo(message: types.Message):
+    with open("girl.jpg", "rb") as photo:
+        await message.reply_photo(photo, caption="Только для тебя 😉")
 
+@dp.message_handler(commands=['voice'])
+async def send_voice(message: types.Message):
+    with open("voice.ogg", "rb") as voice:
+        await message.reply_voice(voice, caption="Скучала по тебе...")
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /help is issued."""
-    await update.message.reply_text("Help!")
-
-
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message."""
-    await update.message.reply_text(update.message.text)
-
-
-if __name__ == "__main__":
-    load_dotenv()
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
-    dev_mode = os.environ.get("DEV_MODE", "False").lower() == "True"
-
-    application = Application.builder().token(token).build()
-
-    if dev_mode:
-        # Webhook settings
-        webhook_url = os.environ.get("WEBHOOK_URL")
-        port = int(os.environ.get("PORT", 8443))
-
-        # Set webhook
-        application.bot.set_webhook(
-            url=f"{webhook_url}/{token}",
-            drop_pending_updates=True
-        )
-
-        application.run_webhook(
-            listen="0.0.0.0",
-            port=port,
-            url_path=token,
-            webhook_url=f"{webhook_url}/{token}"
-        )
-    else:
-        application.run_polling()
-
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True)
